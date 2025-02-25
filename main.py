@@ -101,8 +101,10 @@ def menu_create_contact() -> None:
 
     click.echo('{: ^40}'.format('Новый контакт'))
     click.echo('=' * FORMAT_WIDTH)
-
-    name = input('Наименование: ')
+    
+    while not (name := input('Наименование: ')):
+        print('[red]Имя не должно быть пустым![/red]')
+    
     phone = input('Номер телефона: ')
     comment = input('Коммент: ')
 
