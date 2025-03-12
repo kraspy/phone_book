@@ -2,7 +2,7 @@ from mvc.controllers.app_controller import PhonebookController
 from mvc.models import Phonebook
 from mvc.views.menu import Menu
 
-def main():
+def run_app():
     
     phonebook = Phonebook()
     phonebook.init_phonebook()
@@ -18,4 +18,4 @@ def main():
         menu.menu_show_main()
 
 if __name__ == '__main__':
-    main()
+    run_app()

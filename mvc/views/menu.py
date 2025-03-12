@@ -1,18 +1,16 @@
 import sys
-
 import click
 from rich import print
 from rich.prompt import Prompt
 from rich.table import Table
-from pydantic import ValidationError
-
 from mvc.common.errors import ContactError
-from mvc.models import Phonebook, Contact
 from mvc.common.utils import menu_decorator
 
 
 class Menu:
-    def __init__(self, phonebook: Phonebook, width: int = 40):
+    def __init__(self, controller: 'PhonebookController', width: int = 40):
+        self.controller = controller
+        self.width = width
         self.menu_items = [
             ('Показать контакты', self.menu_show_contacts),
             ('Создать новый контакт', self.menu_create_contact),
@@ -21,8 +19,6 @@ class Menu:
             ('Удалить контакт', self.menu_delete_contact),
             ('Выйти', self.menu_close_app),
         ]
-        self.width = width
-        self.phonebook = phonebook
 
     def go_to_menu():
         print('---')
@@ -53,8 +49,8 @@ class Menu:
 
     @menu_decorator
     def menu_show_contacts(self) -> None:
-        contacts = self.phonebook.load()
-
+        contacts = self.controller.get_all_contacts()
+        
         table = Table(title='Список контактов')
         table.add_column('Наименование')
         table.add_column('Телефон')
@@ -69,66 +65,37 @@ class Menu:
 
     @menu_decorator
     def menu_create_contact(self) -> None:
-        contacts: list[tuple[str, str, str]] = self.phonebook.load()
-
-        click.echo('{: ^40}'.format('Новый контакт'))
-        click.echo('=' * self.width)
-
         try:
-            new_contact = Contact(
-                name=input('Наименование (обязательно): '),
-                phone=input('Номер телефона (9-12 цифр): '),
-                comment=input('Коммент (не обязательно): '),
-            )
+            name = input('Наименование: ')
+            phone = input('Номер телефона: ')
+            comment = input('Комментарий: ')
+            
+            self.controller.create_contact(name, phone, comment)
+            print('[green]Контакт успешно создан![/green]')
         except ContactError as e:
             print(f'[red]{e}[/red]')
-            return
-
-
-
-        contacts.append(new_contact.to_tuple())
-        self.phonebook.save(contacts)
-
-        print('[green]Контакт успешно создан![/green]')
 
     @menu_decorator
     def menu_find_contact(self) -> None:
-        click.echo('{: ^40}'.format('Поиск'))
-        click.echo('=' * self.width)
-
-        req = input('Введите строку поиска: ')
-
-        contacts = self.phonebook.load()
-        found_contacts = []
-
-        if contacts:
-            for contact in contacts:
-                for item in contact:
-                    if req.lower() in item.lower():
-                        found_contacts.append(contact)
-                        break
-            if found_contacts:
-                click.clear()
-                print('[green]Найденные контакты:[/green]')
-
-                table = Table()
-                table.add_column('Наименование')
-                table.add_column('Телефон')
-                table.add_column('Комментарий')
-
-                for contact in found_contacts:
-                    table.add_row(*contact)
-                print(table)
-
-            else:
-                print('[red]Совпадений нет.[/red]')
-
-        else:
-            print('[red]Контактов нет.[/red] Искать нечего.')
+        query = input('Введите строку поиска: ')
+        found_contacts = self.controller.find_contacts(query)
+        
+        if not found_contacts:
+            print('[red]Контакты не найдены[/red]')
+            return
+            
+        table = Table(title='Найденные контакты')
+        table.add_column('Наименование')
+        table.add_column('Телефон')
+        table.add_column('Комментарий')
+        
+        for contact in found_contacts:
+            table.add_row(*contact)
+        print(table)
 
     @menu_decorator
     def menu_change_contact(self) -> None:
-        contacts = self.phonebook.load()
+        contacts = self.controller.get_all_contacts()
 
         if not contacts:
             print('[red]Контактов нет. Изменять нечего.[/red]')
@@ -142,19 +109,15 @@ class Menu:
 
         for i, contact in enumerate(contacts):
             table.add_row(str(i), *contact)
-
         print(table)
 
         contact_number = input('Введите номер контакта, который необходимо изменить: ')
-
         if not (contact_number.isdigit() and 0 <= int(contact_number) < len(contacts)):
-            print('[red]НЕкорректный номер контакта.[/red]')
+            print('[red]Некорректный номер контакта.[/red]')
             return
 
         contact_index = int(contact_number)
-
         name, phone, comment = contacts[contact_index]
-
 
         print(
             f'\n[bold]Текущий контакт:[/bold]\nИмя: {name}\nТелефон: {phone}\nКомментарий: {comment}'
@@ -165,9 +128,10 @@ class Menu:
         )
 
         if not (change_number.isdigit() and int(change_number) in {0, 1, 2}):
-            print('[red]НЕкорректный номер поля для изменения![/red]')
+            print('[red]Некорректный номер поля для изменения![/red]')
             return
 
+        fields = ["name", "phone", "comment"]
         index_texts = [
             'Введите новое имя: ',
             'Введите новый телефон (9-12 цифр): ',
@@ -178,25 +142,18 @@ class Menu:
         new_value = input(index_texts[change_index])
 
         try:
-            Contact.validate_name(new_value) if change_index == 0 else Contact.validate_phone(new_value)
+            self.controller.update_contact(
+                contact_index, 
+                fields[change_index], 
+                new_value
+            )
+            print('[green]Контакт успешно изменен![/green]')
         except ContactError as e:
             print(f'[red]{e}[/red]')
-            return
-
-        match change_index:
-            case 0:
-                contacts[contact_index] = Contact(new_value, phone, comment).to_tuple()
-            case 1:
-                contacts[contact_index] = Contact(name, new_value, comment).to_tuple()
-            case 2:
-                contacts[contact_index] = Contact(name, phone, new_value).to_tuple()
-
-        self.phonebook.save(contacts)
-        print('[green]Контакт успешно изменен![/green]')
 
     @menu_decorator
     def menu_delete_contact(self) -> None:
-        contacts = self.phonebook.load()
+        contacts = self.controller.get_all_contacts()
 
         if not contacts:
             print('[red]Контактов нет. Удалять нечего.[/red]')
@@ -210,17 +167,15 @@ class Menu:
 
         for i, contact in enumerate(contacts):
             table.add_row(str(i), *contact)
-
         print(table)
 
         selected_index = input('Введите номер контакта, который необходимо удалить: ')
 
-        if selected_index.isdigit() and 0 <= int(selected_index) < len(contacts):
+        try:
             selected_index = int(selected_index)
-            removed_contact = contacts.pop(selected_index)
-            self.phonebook.save(contacts)
+            removed_contact = self.controller.delete_contact(selected_index)
             print(f'[green]Контакт "{removed_contact[0]}" успешно удален![/green]')
-        else:
+        except (ValueError, ContactError) as e:
             print('[red]Ошибка! Введите корректный номер контакта.[/red]')
 
     @staticmethod
