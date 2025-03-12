@@ -1,4 +1,4 @@
-from mvc.controller import run_app
+from mvc.controllers.app_controller import run_app
 
 
 if __name__ == '__main__':

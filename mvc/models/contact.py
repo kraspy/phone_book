@@ -1,5 +1,5 @@
 import re
-from mvc.errors import ContactError
+from mvc.common.errors import ContactError
 
 
 class Contact:
@@ -20,5 +20,5 @@ class Contact:
             raise ContactError("Неверный формат номера телефона")
         return phone
 
-    def model_dump_tuple(self) -> tuple[str, str, str]:
+    def to_tuple(self) -> tuple[str, str, str]:
         return self.name, self.phone, self.comment or ""

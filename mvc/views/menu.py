@@ -6,9 +6,9 @@ from rich.prompt import Prompt
 from rich.table import Table
 from pydantic import ValidationError
 
-from mvc.errors import ContactError
+from mvc.common.errors import ContactError
 from mvc.models import Phonebook, Contact
-from mvc.utils import menu_decorator
+from mvc.common.utils import menu_decorator
 
 
 class Menu:
@@ -86,7 +86,7 @@ class Menu:
 
 
 
-        contacts.append(new_contact.model_dump_tuple())
+        contacts.append(new_contact.to_tuple())
         self.phonebook.save(contacts)
 
         print('[green]Контакт успешно создан![/green]')
@@ -185,11 +185,11 @@ class Menu:
 
         match change_index:
             case 0:
-                contacts[contact_index] = Contact(new_value, phone, comment)
+                contacts[contact_index] = Contact(new_value, phone, comment).to_tuple()
             case 1:
-                contacts[contact_index] = Contact(name, new_value, comment)
+                contacts[contact_index] = Contact(name, new_value, comment).to_tuple()
             case 2:
-                contacts[contact_index] = Contact(name, phone, new_value)
+                contacts[contact_index] = Contact(name, phone, new_value).to_tuple()
 
         self.phonebook.save(contacts)
         print('[green]Контакт успешно изменен![/green]')
