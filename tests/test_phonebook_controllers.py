@@ -40,10 +40,16 @@ class PhonebookControllerTestCase(TestCase):
 
         self.phonebook.save(contacts)
 
-        self.assertEqual(self.controller.find_contacts('user'), contacts)
-        self.assertEqual(self.controller.find_contacts('444'), [contacts[5]])
-        self.assertEqual(self.controller.find_contacts('7'), [contacts[2], contacts[3]])
-        self.assertEqual(self.controller.find_contacts('comment 2'), [contacts[1]])
+        cases = [
+            ('user', contacts),
+            ('444', [contacts[5]]),
+            ('7', [contacts[2], contacts[3]]),
+            ('comment 2', [contacts[1]]),
+        ]
+
+        for query, expected in cases:
+            with self.subTest(msg=f'Поиск по "{query}"'):
+                self.assertEqual(self.controller.find_contacts(query), expected)
     
     def test_update_contact(self):
         contacts = [
